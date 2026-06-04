@@ -155,10 +155,12 @@ export default function UCCVerifier() {
         }] : [])
       ];
 
-      const attachmentChecks: AttachmentCheck[] = (parsed.referencedAttachments ?? []).map(att => ({
-        name: att,
-        present: (parsed.presentAttachments ?? []).some(p => fuzzyMatch(p, att))
-      }));
+      const attachmentChecks: AttachmentCheck[] = (parsed.referencedAttachments ?? [])
+        .filter(att => !fuzzyMatch(att, "rider to ucc"))
+        .map(att => ({
+          name: att,
+          present: (parsed.presentAttachments ?? []).some(p => fuzzyMatch(p, att))
+        }));
 
       setResults({ verifications, extracted: parsed, attachmentChecks });
     } catch (err) {
