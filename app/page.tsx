@@ -1,20 +1,56 @@
 "use client";
 import { useState, useRef } from "react";
+import type { ChangeEvent, ChangeEventHandler } from "react";
 
-const fuzzyMatch = (a, b) => {
+type StatusKey = keyof typeof STATUS;
+
+interface Verification {
+  label: string;
+  userValue: string | null;
+  docValue: string | null;
+  status: StatusKey;
+  note?: string | null;
+}
+
+interface AttachmentCheck {
+  name: string;
+  present: boolean;
+}
+
+interface ExtractedData {
+  debtorName?: string;
+  recordingDate?: string;
+  propertyAddress?: string;
+  loanAmount?: string;
+  securedPartyName?: string;
+  lenderName?: string;
+  seriesNumber?: string;
+  uccNumber?: string;
+  receiptNumber?: string;
+  referencedAttachments?: string[];
+  presentAttachments?: string[];
+}
+
+interface Results {
+  verifications: Verification[];
+  extracted: ExtractedData;
+  attachmentChecks: AttachmentCheck[];
+}
+
+const fuzzyMatch = (a: string, b: string): boolean => {
   if (!a || !b) return false;
-  const normalize = s => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
   const na = normalize(a), nb = normalize(b);
   if (na === nb) return true;
   if (na.includes(nb) || nb.includes(na)) return true;
   return false;
 };
 
-const dateMatch = (userDate, docDate) => {
+const dateMatch = (userDate: string, docDate: string): boolean => {
   if (!userDate || !docDate) return false;
   const closing = new Date(userDate);
   const recording = new Date(docDate);
-  if (isNaN(closing) || isNaN(recording)) return false;
+  if (isNaN(closing.getTime()) || isNaN(recording.getTime())) return false;
   return recording >= closing;
 };
 
@@ -26,8 +62,8 @@ const STATUS = {
   missing:  { bg: "#fee2e2", color: "#991b1b", icon: "✗", label: "Missing" },
 };
 
-const Badge = ({ status }) => {
-  const s = STATUS[status] || STATUS.notfound;
+const Badge = ({ status }: { status: string }) => {
+  const s = (STATUS as Record<string, { bg: string; color: string; icon: string; label: string }>)[status] ?? STATUS.notfound;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color, fontSize: 12, fontWeight: 500, whiteSpace: "nowrap" }}>
       {s.icon} {s.label}
@@ -35,7 +71,16 @@ const Badge = ({ status }) => {
   );
 };
 
-const Field = ({ label, placeholder, value, onChange, type = "text", required }) => (
+interface FieldProps {
+  label: string;
+  placeholder?: string;
+  value: string;
+  onChange: ChangeEventHandler<HTMLInputElement>;
+  type?: string;
+  required?: boolean;
+}
+
+const Field = ({ label, placeholder, value, onChange, type = "text", required }: FieldProps) => (
   <div>
     <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: "#6b7280", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>
       {label}{required && <span style={{ color: "#ef4444", marginLeft: 2 }}>*</span>}
@@ -47,13 +92,14 @@ const Field = ({ label, placeholder, value, onChange, type = "text", required })
 
 export default function UCCVerifier() {
   const [form, setForm] = useState({ entityName: "", closingDate: "", loanAmount: "", propertyAddress: "" });
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState(null);
-  const [error, setError] = useState(null);
+  const [results, setResults] = useState<Results | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement>) =>
+    setForm(p => ({ ...p, [k]: e.target.value }));
 
   const reset = () => {
     setForm({ entityName: "", closingDate: "", loanAmount: "", propertyAddress: "" });
@@ -61,8 +107,8 @@ export default function UCCVerifier() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const handleFile = (e) => {
-    const f = e.target.files[0];
+  const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
     if (f && f.type === "application/pdf") { setFile(f); setResults(null); setError(null); }
     else setError("Please upload a PDF file.");
   };
@@ -79,44 +125,44 @@ export default function UCCVerifier() {
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
 
-      const parsed = json.data;
+      const parsed: ExtractedData = json.data;
 
-      const verifications = [
+      const verifications: Verification[] = [
         {
           label: "Entity Name",
           userValue: form.entityName,
-          docValue: parsed.debtorName,
+          docValue: parsed.debtorName ?? null,
           status: !form.entityName ? "notfound" : !parsed.debtorName ? "notfound" : fuzzyMatch(form.entityName, parsed.debtorName) ? "match" : "mismatch"
         },
         {
           label: "Closing Date",
           userValue: form.closingDate,
-          docValue: parsed.recordingDate,
+          docValue: parsed.recordingDate ?? null,
           status: !form.closingDate ? "notfound" : !parsed.recordingDate ? "notfound" : dateMatch(form.closingDate, parsed.recordingDate) ? "match" : "mismatch",
           note: parsed.recordingDate && form.closingDate && !dateMatch(form.closingDate, parsed.recordingDate) ? "Recording date must be on or after closing date" : null
         },
         {
           label: "Property Address",
           userValue: form.propertyAddress,
-          docValue: parsed.propertyAddress,
+          docValue: parsed.propertyAddress ?? null,
           status: !form.propertyAddress ? "notfound" : !parsed.propertyAddress ? "notfound" : fuzzyMatch(form.propertyAddress, parsed.propertyAddress) ? "match" : "mismatch"
         },
         ...(parsed.loanAmount ? [{
           label: "Loan Amount",
           userValue: form.loanAmount ? `$${parseFloat(form.loanAmount).toLocaleString()}` : null,
           docValue: parsed.loanAmount,
-          status: !form.loanAmount ? "notfound" : fuzzyMatch(form.loanAmount.replace(/[^0-9.]/g, ""), parsed.loanAmount.replace(/[^0-9.]/g, "")) ? "match" : "mismatch"
+          status: (!form.loanAmount ? "notfound" : fuzzyMatch(form.loanAmount.replace(/[^0-9.]/g, ""), parsed.loanAmount.replace(/[^0-9.]/g, "")) ? "match" : "mismatch") as StatusKey
         }] : [])
       ];
 
-      const attachmentChecks = (parsed.referencedAttachments || []).map(att => ({
+      const attachmentChecks: AttachmentCheck[] = (parsed.referencedAttachments ?? []).map(att => ({
         name: att,
-        present: (parsed.presentAttachments || []).some(p => fuzzyMatch(p, att))
+        present: (parsed.presentAttachments ?? []).some(p => fuzzyMatch(p, att))
       }));
 
       setResults({ verifications, extracted: parsed, attachmentChecks });
     } catch (err) {
-      setError("Failed to parse document: " + err.message);
+      setError("Failed to parse document: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -240,7 +286,7 @@ export default function UCCVerifier() {
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <tbody>
-                {[
+                {([
                   ["Recording date", results.extracted.recordingDate],
                   ["Secured party", results.extracted.securedPartyName],
                   ["Lender name", results.extracted.lenderName],
@@ -248,7 +294,7 @@ export default function UCCVerifier() {
                   ["UCC number", results.extracted.uccNumber],
                   ["Receipt number", results.extracted.receiptNumber],
                   ["Loan amount in document", results.extracted.loanAmount],
-                ].map(([label, val], i, arr) => (
+                ] as [string, string | undefined][]).map(([label, val], i, arr) => (
                   <tr key={label} style={{ borderBottom: i < arr.length - 1 ? "1px solid #e5e7eb" : "none", background: i % 2 === 0 ? "#fff" : "#f9fafb" }}>
                     <td style={{ padding: "10px 16px", color: "#6b7280", width: "38%", fontSize: 12, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</td>
                     <td style={{ padding: "10px 16px", fontWeight: 500, color: "#111827" }}>{val || <span style={{ fontStyle: "italic", color: "#d1d5db", fontWeight: 400 }}>—</span>}</td>
