@@ -54,11 +54,25 @@ const fuzzyMatch = (a: string, b: string): boolean => {
   return false;
 };
 
+const parseDate = (d: string): Date | null => {
+  if (!d) return null;
+  const date = new Date(d);
+  if (!isNaN(date.getTime())) return date;
+  // try MM/DD/YYYY
+  const parts = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (parts) return new Date(`${parts[3]}-${parts[1].padStart(2,"0")}-${parts[2].padStart(2,"0")}`);
+  return null;
+};
+
+const datesEqual = (a: string, b: string): boolean => {
+  const da = parseDate(a), db = parseDate(b);
+  if (!da || !db) return false;
+  return da.toDateString() === db.toDateString();
+};
+
 const dateOnOrAfter = (baseDate: string, checkDate: string): boolean => {
-  if (!baseDate || !checkDate) return false;
-  const base = new Date(baseDate);
-  const check = new Date(checkDate);
-  if (isNaN(base.getTime()) || isNaN(check.getTime())) return false;
+  const base = parseDate(baseDate), check = parseDate(checkDate);
+  if (!base || !check) return false;
   return check >= base;
 };
 
@@ -148,7 +162,7 @@ export default function MortgageVerifier() {
           label: "Closing Date",
           userValue: form.closingDate,
           docValue: p.closingDate ?? null,
-          status: !form.closingDate ? "notfound" : !p.closingDate ? "notfound" : fuzzyMatch(form.closingDate, p.closingDate) ? "match" : "mismatch"
+          status: !form.closingDate ? "notfound" : !p.closingDate ? "notfound" : datesEqual(form.closingDate, p.closingDate) ? "match" : "mismatch"
         },
         {
           label: "Loan Amount",
@@ -173,7 +187,7 @@ export default function MortgageVerifier() {
           label: "Signature Page Date",
           userValue: form.closingDate,
           docValue: p.signaturePageClosingDate ?? null,
-          status: !p.signaturePageClosingDate ? "notfound" : !form.closingDate ? "notfound" : fuzzyMatch(form.closingDate, p.signaturePageClosingDate) ? "match" : "mismatch"
+          status: !p.signaturePageClosingDate ? "notfound" : !form.closingDate ? "notfound" : datesEqual(form.closingDate, p.signaturePageClosingDate) ? "match" : "mismatch"
         },
       ];
 
