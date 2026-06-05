@@ -16,6 +16,13 @@ const tools = [
     description: "Verify recorded mortgage documents — borrower, lender, loan amount, and recording details.",
     color: "#065f46",
   },
+  {
+    href: "/alr",
+    icon: "📋",
+    title: "Assignment of Leases & Rents",
+    description: "Verify ALR documents — assignor, assignee, loan amount, signatures, and recording details.",
+    color: "#7c3aed",
+  },
 ];
 
 export default function Home() {

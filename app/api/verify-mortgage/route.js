@@ -15,14 +15,17 @@ export async function POST(request) {
 
 IMPORTANT CONTEXT RULES:
 - "closingDate" is the DATED/execution date of the mortgage — NOT the recording date, NOT the maturity/due date
-- "recordingDate" is the date stamped by the county clerk (found in the header/footer stamp on page 1 or last page)
+- "recordingDate" is the date the document was recorded by the county clerk — it may appear as a stamp, cover sheet, header, or embedded recording info anywhere in the document
+- "isRecorded" should be true if there is ANY evidence of recording: instrument number, recording stamp, county clerk info, cover sheet recording info, receipt number, or recorded/file date
 - Do NOT confuse maturity dates, notary commission expiry dates, or other dates for these fields
 - Borrower = Mortgagor = Debtor — all refer to the same party
 - Lender = Mortgagee = Secured Party — all refer to the same party (note: Mortgagee may be MERS as nominee; in that case lenderName should be the actual lender named, e.g. "Funded Capital, LLC")
-- Legal description is the LOT/BLOCK/PLAT/parcel text in Schedule A — it is NOT just the street address
+- Legal description can appear ANYWHERE in the document — inside Schedule A, on a separate page, or elsewhere. It is lot/block/plat/parcel/unit text — NOT just a street address
+- "isRecorded" should be true if there is ANY evidence of recording anywhere in the document
 
 {
-  "recordingDate": "date from the county clerk recording stamp (format MM/DD/YYYY), null if not found",
+  "isRecorded": true or false — is there any evidence this document has been recorded,
+  "recordingDate": "recording date if found (format MM/DD/YYYY), null if not found",
   "recordingInstrumentNumber": "instrument/document number from the recording stamp, null if not found",
   "recordingCounty": "county name from the recording stamp, null if not found",
   "documentType": "exact title of the document (e.g. 'Commercial Mortgage, Security Agreement and Fixture Filing', 'Deed of Trust', 'Open End Mortgage'), null if not found",

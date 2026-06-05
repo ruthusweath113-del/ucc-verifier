@@ -13,37 +13,35 @@ interface Verification {
   note?: string | null;
 }
 
-interface ParsedMortgage {
+interface ParsedALR {
+  isRecorded?: boolean;
   recordingDate?: string;
   recordingInstrumentNumber?: string;
   recordingCounty?: string;
   documentType?: string;
-  isMortgageDocument?: boolean;
+  isALRDocument?: boolean;
   closingDate?: string;
-  borrowerName?: string;
-  lenderName?: string;
-  mortgageeName?: string;
+  assignorName?: string;
+  assigneeName?: string;
   returnToParty?: string;
   propertyAddress?: string;
   loanAmount?: string;
   scheduleAPresent?: boolean;
   legalDescriptionPresent?: boolean;
-  legalDescription?: string;
   scheduleBPresent?: boolean;
   scheduleBContent?: string;
-  borrowerSignaturePresent?: boolean;
+  assignorSignaturePresent?: boolean;
   notarySignaturePresent?: boolean;
   notaryStampPresent?: boolean;
   signaturePageClosingDate?: string;
   totalPages?: number;
   allPagesPresent?: boolean;
-  isRecorded?: boolean;
 }
 
 interface Results {
   verifications: Verification[];
   checks: { label: string; pass: boolean; note?: string }[];
-  extracted: ParsedMortgage;
+  extracted: ParsedALR;
 }
 
 const fuzzyMatch = (a: string, b: string): boolean => {
@@ -57,7 +55,6 @@ const fuzzyMatch = (a: string, b: string): boolean => {
 
 const addressMatch = (a: string, b: string): boolean => {
   if (!a || !b) return false;
-  // strip parenthetical content e.g. "(LOT 52 OF ROCK GARDENS UNIT 5)"
   const strip = (s: string) => s.replace(/\(.*?\)/g, "").replace(/\s+/g, " ").trim();
   return fuzzyMatch(strip(a), strip(b));
 };
@@ -66,13 +63,10 @@ type YMD = { y: number; m: number; d: number };
 
 const parseDate = (s: string): YMD | null => {
   if (!s) return null;
-  // YYYY-MM-DD
   let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (m) return { y: +m[1], m: +m[2], d: +m[3] };
-  // MM/DD/YYYY
   m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (m) return { y: +m[3], m: +m[1], d: +m[2] };
-  // fallback: let JS parse it and extract local date parts
   const dt = new Date(s);
   if (!isNaN(dt.getTime())) return { y: dt.getFullYear(), m: dt.getMonth() + 1, d: dt.getDate() };
   return null;
@@ -98,7 +92,6 @@ const STATUS = {
   notfound: { bg: "#fef3c7", color: "#92400e", icon: "!", label: "Not found" },
   pass:     { bg: "#d1fae5", color: "#065f46", icon: "✓", label: "Pass" },
   fail:     { bg: "#fee2e2", color: "#991b1b", icon: "✗", label: "Fail" },
-  warn:     { bg: "#fef3c7", color: "#92400e", icon: "!", label: "Warning" },
 };
 
 const Badge = ({ status }: { status: string }) => {
@@ -129,7 +122,7 @@ const Field = ({ label, placeholder, value, onChange, type = "text", required }:
   </div>
 );
 
-export default function MortgageVerifier() {
+export default function ALRVerifier() {
   const [form, setForm] = useState({ entityName: "", closingDate: "", loanAmount: "", propertyAddress: "" });
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -153,26 +146,25 @@ export default function MortgageVerifier() {
   };
 
   const verify = async () => {
-    if (!file) { setError("Please upload a mortgage document."); return; }
+    if (!file) { setError("Please upload an ALR document."); return; }
     setLoading(true); setError(null); setResults(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("fields", JSON.stringify(form));
 
-      const res = await fetch("/api/verify-mortgage", { method: "POST", body: formData });
+      const res = await fetch("/api/verify-alr", { method: "POST", body: formData });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
 
-      const p: ParsedMortgage = json.data;
+      const p: ParsedALR = json.data;
 
-      // Field verifications (match/mismatch)
       const verifications: Verification[] = [
         {
-          label: "Entity / Borrower Name",
+          label: "Entity / Assignor Name",
           userValue: form.entityName,
-          docValue: p.borrowerName ?? null,
-          status: !form.entityName ? "notfound" : !p.borrowerName ? "notfound" : fuzzyMatch(form.entityName, p.borrowerName) ? "match" : "mismatch"
+          docValue: p.assignorName ?? null,
+          status: !form.entityName ? "notfound" : !p.assignorName ? "notfound" : fuzzyMatch(form.entityName, p.assignorName) ? "match" : "mismatch"
         },
         {
           label: "Closing Date",
@@ -207,11 +199,10 @@ export default function MortgageVerifier() {
         },
       ];
 
-      // Presence checks (pass/fail)
       const checks = [
         { label: "Document is recorded", pass: p.isRecorded === true },
-        { label: "Document is a mortgage/deed", pass: p.isMortgageDocument === true, note: p.documentType ?? undefined },
-        { label: "Borrower signature", pass: p.borrowerSignaturePresent === true },
+        { label: "Document is an ALR", pass: p.isALRDocument === true, note: p.documentType ?? undefined },
+        { label: "Assignor signature", pass: p.assignorSignaturePresent === true },
         { label: "Notary signature", pass: p.notarySignaturePresent === true },
         { label: "Notary stamp / seal", pass: p.notaryStampPresent === true },
         { label: "Schedule A present", pass: p.scheduleAPresent === true },
@@ -239,45 +230,45 @@ export default function MortgageVerifier() {
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none", flexShrink: 0 }}>
           <span style={{ fontSize: 13, color: "#6b7280" }}>← Back</span>
         </Link>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: "#065f46", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ color: "#fff", fontSize: 20 }}>🏠</span>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ color: "#fff", fontSize: 20 }}>📋</span>
         </div>
         <div>
-          <p style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "#111827" }}>Recorded Mortgage Verifier</p>
-          <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>Commercial mortgage verification tool</p>
+          <p style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "#111827" }}>ALR Verifier</p>
+          <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>Assignment of Leases and Rents verification tool</p>
         </div>
       </div>
 
       {/* Form */}
       <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", marginBottom: "1rem" }}>
-        <div style={{ padding: "12px 16px", background: "#065f46" }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#d1fae5" }}>📋 Loan details</p>
+        <div style={{ padding: "12px 16px", background: "#7c3aed" }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#ede9fe" }}>📋 Loan details</p>
         </div>
         <div style={{ padding: "1.25rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-            <Field label="Entity / Borrower Name" placeholder="e.g. Stonecabi Corp" value={form.entityName} onChange={set("entityName")} required />
+            <Field label="Entity / Assignor Name" placeholder="e.g. Silverrock Capital LLC" value={form.entityName} onChange={set("entityName")} required />
             <Field label="Closing Date" type="date" value={form.closingDate} onChange={set("closingDate")} required />
-            <Field label="Loan Amount" placeholder="e.g. 325000" type="number" value={form.loanAmount} onChange={set("loanAmount")} required />
+            <Field label="Loan Amount" placeholder="e.g. 152250" type="number" value={form.loanAmount} onChange={set("loanAmount")} required />
             <div />
           </div>
-          <Field label="Property Address" placeholder="e.g. 19910 Longleaf Drive, Lutz, FL 33548" value={form.propertyAddress} onChange={set("propertyAddress")} required />
+          <Field label="Property Address" placeholder="e.g. 73 Cheshire Drive, Galloway, NJ 08205" value={form.propertyAddress} onChange={set("propertyAddress")} required />
         </div>
       </div>
 
       {/* Upload */}
-      <label htmlFor="mtg-file-input" style={{ display: "block", border: file ? "2px solid #059669" : "2px dashed #d1d5db", borderRadius: 12, padding: "1.5rem", textAlign: "center", cursor: "pointer", marginBottom: "1rem", background: file ? "#ecfdf5" : "#f9fafb" }}>
+      <label htmlFor="alr-file-input" style={{ display: "block", border: file ? "2px solid #7c3aed" : "2px dashed #d1d5db", borderRadius: 12, padding: "1.5rem", textAlign: "center", cursor: "pointer", marginBottom: "1rem", background: file ? "#f5f3ff" : "#f9fafb" }}>
         <p style={{ fontSize: 28, margin: "0 0 6px" }}>☁️</p>
         {file
-          ? <><p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#065f46" }}>{file.name}</p><p style={{ margin: "3px 0 0", fontSize: 12, color: "#059669" }}>Click to replace</p></>
-          : <><p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#374151" }}>Upload recorded mortgage document</p><p style={{ margin: "3px 0 0", fontSize: 12, color: "#6b7280" }}>PDF only · Click to browse</p></>
+          ? <><p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#7c3aed" }}>{file.name}</p><p style={{ margin: "3px 0 0", fontSize: 12, color: "#7c3aed" }}>Click to replace</p></>
+          : <><p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#374151" }}>Upload ALR document</p><p style={{ margin: "3px 0 0", fontSize: 12, color: "#6b7280" }}>PDF only · Click to browse</p></>
         }
-        <input id="mtg-file-input" ref={fileRef} type="file" accept=".pdf" onChange={handleFile} style={{ display: "none" }} />
+        <input id="alr-file-input" ref={fileRef} type="file" accept=".pdf" onChange={handleFile} style={{ display: "none" }} />
       </label>
 
       {error && <div style={{ marginBottom: "1rem", padding: "10px 14px", background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8, fontSize: 13, color: "#991b1b" }}>{error}</div>}
 
       <button onClick={verify} disabled={loading || !file}
-        style={{ width: "100%", padding: "11px", fontSize: 14, fontWeight: 500, marginBottom: "2rem", cursor: loading || !file ? "not-allowed" : "pointer", opacity: loading || !file ? 0.5 : 1, background: "#065f46", color: "#fff", border: "none", borderRadius: 8 }}>
+        style={{ width: "100%", padding: "11px", fontSize: 14, fontWeight: 500, marginBottom: "2rem", cursor: loading || !file ? "not-allowed" : "pointer", opacity: loading || !file ? 0.5 : 1, background: "#7c3aed", color: "#fff", border: "none", borderRadius: 8 }}>
         {loading ? "⏳ Analysing document…" : "🔍 Verify document"}
       </button>
 
@@ -300,8 +291,8 @@ export default function MortgageVerifier() {
 
           {/* Field verifications */}
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", marginBottom: "1.25rem" }}>
-            <div style={{ padding: "10px 16px", background: "#065f46" }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#d1fae5" }}>✅ Field verification</p>
+            <div style={{ padding: "10px 16px", background: "#7c3aed" }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#ede9fe" }}>✅ Field verification</p>
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
               <colgroup>
@@ -332,8 +323,8 @@ export default function MortgageVerifier() {
 
           {/* Presence checks */}
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", marginBottom: "1.25rem" }}>
-            <div style={{ padding: "10px 16px", background: "#065f46" }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#d1fae5" }}>🔎 Document checks</p>
+            <div style={{ padding: "10px 16px", background: "#7c3aed" }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#ede9fe" }}>🔎 Document checks</p>
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <tbody>
@@ -352,8 +343,8 @@ export default function MortgageVerifier() {
 
           {/* Extracted info */}
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ padding: "10px 16px", background: "#065f46" }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#d1fae5" }}>📁 Extracted document info</p>
+            <div style={{ padding: "10px 16px", background: "#7c3aed" }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#ede9fe" }}>📁 Extracted document info</p>
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <tbody>
@@ -362,10 +353,9 @@ export default function MortgageVerifier() {
                   ["Instrument #", results.extracted.recordingInstrumentNumber],
                   ["Recording date", results.extracted.recordingDate],
                   ["County", results.extracted.recordingCounty],
-                  ["Lender", results.extracted.lenderName],
-                  ["Mortgagee", results.extracted.mortgageeName],
+                  ["Assignee / Lender", results.extracted.assigneeName],
                   ["After recording return to", results.extracted.returnToParty],
-                  ["Schedule B (Encumbrances)", results.extracted.scheduleBContent],
+                  ["Schedule B content", results.extracted.scheduleBContent],
                 ] as [string, string | undefined][]).map(([label, val], i, arr) => (
                   <tr key={label} style={{ borderBottom: i < arr.length - 1 ? "1px solid #e5e7eb" : "none", background: i % 2 === 0 ? "#fff" : "#f9fafb" }}>
                     <td style={{ padding: "10px 16px", color: "#6b7280", width: "38%", fontSize: 12, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</td>
@@ -376,7 +366,7 @@ export default function MortgageVerifier() {
             </table>
           </div>
 
-          <button onClick={reset} style={{ width: "100%", marginTop: "1.25rem", padding: "11px", fontSize: 14, fontWeight: 500, cursor: "pointer", background: "transparent", color: "#065f46", border: "2px solid #065f46", borderRadius: 8 }}>
+          <button onClick={reset} style={{ width: "100%", marginTop: "1.25rem", padding: "11px", fontSize: 14, fontWeight: 500, cursor: "pointer", background: "transparent", color: "#7c3aed", border: "2px solid #7c3aed", borderRadius: 8 }}>
             🔄 Verify another document
           </button>
         </>
