@@ -54,26 +54,34 @@ const fuzzyMatch = (a: string, b: string): boolean => {
   return false;
 };
 
-const parseDate = (d: string): Date | null => {
-  if (!d) return null;
-  const date = new Date(d);
-  if (!isNaN(date.getTime())) return date;
-  // try MM/DD/YYYY
-  const parts = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (parts) return new Date(`${parts[3]}-${parts[1].padStart(2,"0")}-${parts[2].padStart(2,"0")}`);
+type YMD = { y: number; m: number; d: number };
+
+const parseDate = (s: string): YMD | null => {
+  if (!s) return null;
+  // YYYY-MM-DD
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return { y: +m[1], m: +m[2], d: +m[3] };
+  // MM/DD/YYYY
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return { y: +m[3], m: +m[1], d: +m[2] };
+  // fallback: let JS parse it and extract local date parts
+  const dt = new Date(s);
+  if (!isNaN(dt.getTime())) return { y: dt.getFullYear(), m: dt.getMonth() + 1, d: dt.getDate() };
   return null;
 };
 
 const datesEqual = (a: string, b: string): boolean => {
   const da = parseDate(a), db = parseDate(b);
   if (!da || !db) return false;
-  return da.toDateString() === db.toDateString();
+  return da.y === db.y && da.m === db.m && da.d === db.d;
 };
 
 const dateOnOrAfter = (baseDate: string, checkDate: string): boolean => {
   const base = parseDate(baseDate), check = parseDate(checkDate);
   if (!base || !check) return false;
-  return check >= base;
+  if (check.y !== base.y) return check.y > base.y;
+  if (check.m !== base.m) return check.m > base.m;
+  return check.d >= base.d;
 };
 
 const STATUS = {
