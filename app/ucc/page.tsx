@@ -204,7 +204,7 @@ export default function UCCVerifier() {
         <div style={{ padding: "1.25rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
             <Field label="Entity Name" placeholder="e.g. 21 Kathy, LLC" value={form.entityName} onChange={set("entityName")} required />
-            <Field label="Closing Date" type="date" value={form.closingDate} onChange={set("closingDate")} required />
+            <Field label="Closing Date" placeholder="e.g. 05/19/2026 or May 19, 2026" value={form.closingDate} onChange={set("closingDate")} required />
             <Field label="Loan Amount (optional)" placeholder="e.g. 500000" type="number" value={form.loanAmount} onChange={set("loanAmount")} />
             <div style={{ display: "flex", alignItems: "center" }}>
               <p style={{ margin: 0, fontSize: 11, color: "#9ca3af", fontStyle: "italic" }}>Verified only if listed in the document.</p>

@@ -247,7 +247,7 @@ export default function ALRVerifier() {
         <div style={{ padding: "1.25rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
             <Field label="Entity / Assignor Name" placeholder="e.g. Silverrock Capital LLC" value={form.entityName} onChange={set("entityName")} required />
-            <Field label="Closing Date" type="date" value={form.closingDate} onChange={set("closingDate")} required />
+            <Field label="Closing Date" placeholder="e.g. 05/19/2026 or May 19, 2026" value={form.closingDate} onChange={set("closingDate")} required />
             <Field label="Loan Amount" placeholder="e.g. 152250" type="number" value={form.loanAmount} onChange={set("loanAmount")} required />
             <div />
           </div>
