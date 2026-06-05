@@ -47,6 +47,12 @@ const fuzzyMatch = (a: string, b: string): boolean => {
   return false;
 };
 
+const addressMatch = (a: string, b: string): boolean => {
+  if (!a || !b) return false;
+  const strip = (s: string) => s.replace(/\(.*?\)/g, "").replace(/\s+/g, " ").trim();
+  return fuzzyMatch(strip(a), strip(b));
+};
+
 const dateMatch = (userDate: string, docDate: string): boolean => {
   if (!userDate || !docDate) return false;
   const closing = new Date(userDate);
@@ -146,7 +152,7 @@ export default function UCCVerifier() {
           label: "Property Address",
           userValue: form.propertyAddress,
           docValue: parsed.propertyAddress ?? null,
-          status: !form.propertyAddress ? "notfound" : !parsed.propertyAddress ? "notfound" : fuzzyMatch(form.propertyAddress, parsed.propertyAddress) ? "match" : "mismatch"
+          status: !form.propertyAddress ? "notfound" : !parsed.propertyAddress ? "notfound" : addressMatch(form.propertyAddress, parsed.propertyAddress) ? "match" : "mismatch"
         },
         ...(parsed.loanAmount ? [{
           label: "Loan Amount",

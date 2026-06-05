@@ -54,6 +54,13 @@ const fuzzyMatch = (a: string, b: string): boolean => {
   return false;
 };
 
+const addressMatch = (a: string, b: string): boolean => {
+  if (!a || !b) return false;
+  // strip parenthetical content e.g. "(LOT 52 OF ROCK GARDENS UNIT 5)"
+  const strip = (s: string) => s.replace(/\(.*?\)/g, "").replace(/\s+/g, " ").trim();
+  return fuzzyMatch(strip(a), strip(b));
+};
+
 type YMD = { y: number; m: number; d: number };
 
 const parseDate = (s: string): YMD | null => {
@@ -182,7 +189,7 @@ export default function MortgageVerifier() {
           label: "Property Address",
           userValue: form.propertyAddress,
           docValue: p.propertyAddress ?? null,
-          status: !form.propertyAddress ? "notfound" : !p.propertyAddress ? "notfound" : fuzzyMatch(form.propertyAddress, p.propertyAddress) ? "match" : "mismatch"
+          status: !form.propertyAddress ? "notfound" : !p.propertyAddress ? "notfound" : addressMatch(form.propertyAddress, p.propertyAddress) ? "match" : "mismatch"
         },
         {
           label: "Recording Date",
