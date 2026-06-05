@@ -23,7 +23,9 @@ export async function POST(request) {
   "loanAmount": "loan amount if mentioned anywhere in the document else null",
   "referencedAttachments": ["list of attachments referenced in the document e.g. Schedule A, Exhibit A"],
   "presentAttachments": ["list of attachments that are actually present/included in the document"],
-  "propertyAddress": "full property address or premises from the document"
+  "propertyAddress": "full property address or premises from the document",
+  "recordingLevel": "county or state — where was this UCC filed? Look for county clerk, county recorder, or similar. If filed with Secretary of State or state-level office, return 'state'. If filed with a county clerk or county recorder, return 'county'",
+  "recordingOffice": "name of the recording office e.g. 'Hillsborough County Clerk' or 'Secretary of State'"
 }
 Return only the JSON object.`;
 

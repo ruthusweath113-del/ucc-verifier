@@ -30,12 +30,15 @@ interface ExtractedData {
   receiptNumber?: string;
   referencedAttachments?: string[];
   presentAttachments?: string[];
+  recordingLevel?: string;
+  recordingOffice?: string;
 }
 
 interface Results {
   verifications: Verification[];
   extracted: ExtractedData;
   attachmentChecks: AttachmentCheck[];
+  isCountyRecording: boolean;
 }
 
 const fuzzyMatch = (a: string, b: string): boolean => {
@@ -169,7 +172,8 @@ export default function UCCVerifier() {
           present: (parsed.presentAttachments ?? []).some(p => fuzzyMatch(p, att))
         }));
 
-      setResults({ verifications, extracted: parsed, attachmentChecks });
+      const isCountyRecording = parsed.recordingLevel?.toLowerCase() === "county";
+      setResults({ verifications, extracted: parsed, attachmentChecks, isCountyRecording });
     } catch (err) {
       setError("Failed to parse document: " + (err instanceof Error ? err.message : String(err)));
     } finally {
@@ -177,7 +181,7 @@ export default function UCCVerifier() {
     }
   };
 
-  const allGood = results && results.verifications.filter(v => v.userValue).every(v => v.status === "match") && results.attachmentChecks.every(a => a.present);
+  const allGood = results && results.verifications.filter(v => v.userValue).every(v => v.status === "match") && results.attachmentChecks.every(a => a.present) && results.isCountyRecording;
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 720, margin: "0 auto", padding: "2rem 1rem" }}>
@@ -287,6 +291,14 @@ export default function UCCVerifier() {
                     <td style={{ padding: "11px 14px", verticalAlign: "top" }}><Badge status={a.present ? "present" : "missing"} /></td>
                   </tr>
                 ))}
+                <tr style={{ background: results.isCountyRecording ? "#f0fdf4" : "#fff5f5" }}>
+                  <td style={{ padding: "11px 14px", fontWeight: 500, color: "#111827", verticalAlign: "top" }}>UCC County Recording</td>
+                  <td style={{ padding: "11px 14px", color: "#6b7280", verticalAlign: "top" }}>Must be county</td>
+                  <td style={{ padding: "11px 14px", color: "#111827", verticalAlign: "top" }}>
+                    {results.extracted.recordingOffice || (results.isCountyRecording ? "County recording" : "State recording — must be county")}
+                  </td>
+                  <td style={{ padding: "11px 14px", verticalAlign: "top" }}><Badge status={results.isCountyRecording ? "present" : "missing"} /></td>
+                </tr>
               </tbody>
             </table>
           </div>
