@@ -3,6 +3,13 @@ import Link from "next/link";
 
 const tools = [
   {
+    href: "/verify-all",
+    icon: "⚡",
+    title: "Verify All Documents",
+    description: "Enter details once and verify UCC, Mortgage, and ALR together in one shot.",
+    color: "#111827",
+  },
+  {
     href: "/ucc",
     icon: "📄",
     title: "UCC Document",
