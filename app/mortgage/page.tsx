@@ -364,7 +364,6 @@ export default function MortgageVerifier() {
                   ["Mortgagee", results.extracted.mortgageeName],
                   ["After recording return to", results.extracted.returnToParty],
                   ["Schedule B (Encumbrances)", results.extracted.scheduleBContent],
-                  ["Legal description", results.extracted.legalDescription],
                 ] as [string, string | undefined][]).map(([label, val], i, arr) => (
                   <tr key={label} style={{ borderBottom: i < arr.length - 1 ? "1px solid #e5e7eb" : "none", background: i % 2 === 0 ? "#fff" : "#f9fafb" }}>
                     <td style={{ padding: "10px 16px", color: "#6b7280", width: "38%", fontSize: 12, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</td>
