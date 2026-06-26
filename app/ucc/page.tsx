@@ -104,6 +104,7 @@ export default function UCCVerifier() {
   const [form, setForm] = useState({ entityName: "", closingDate: "", loanAmount: "", propertyAddress: "" });
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState("");
   const [results, setResults] = useState<Results | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -127,11 +128,41 @@ export default function UCCVerifier() {
     if (!file) { setError("Please upload a UCC document."); return; }
     setLoading(true); setError(null); setResults(null);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("fields", JSON.stringify(form));
+      // Step 1: render PDF pages to canvas using PDF.js (browser)
+      setStatusMsg("Loading PDF...");
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@6.0.227/build/pdf.worker.min.mjs";
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
 
-      const res = await fetch("/api/verify", { method: "POST", body: formData });
+      // Step 2: OCR each page with Tesseract (browser)
+      setStatusMsg("Loading OCR engine...");
+      const { createWorker } = await import("tesseract.js");
+      const ocrWorker = await createWorker("eng");
+
+      let fullText = "";
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        setStatusMsg(`Reading page ${pageNum} of ${pdf.numPages}...`);
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 2.0 });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+        await page.render({ canvasContext: ctx as unknown as object, viewport }).promise;
+        const { data: { text } } = await ocrWorker.recognize(canvas);
+        fullText += text + "\n";
+      }
+      await ocrWorker.terminate();
+
+      // Step 3: send extracted text to API for verification
+      setStatusMsg("Verifying...");
+      const res = await fetch("/api/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: fullText, fields: form }),
+      });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
 
@@ -232,7 +263,7 @@ export default function UCCVerifier() {
 
       <button onClick={verify} disabled={loading || !file}
         style={{ width: "100%", padding: "11px", fontSize: 14, fontWeight: 500, marginBottom: "2rem", cursor: loading || !file ? "not-allowed" : "pointer", opacity: loading || !file ? 0.5 : 1, background: "#1e3a5f", color: "#fff", border: "none", borderRadius: 8 }}>
-        {loading ? "⏳ Analysing document…" : "🔍 Verify document"}
+        {loading ? `⏳ ${statusMsg || "Analysing..."}` : "🔍 Verify document"}
       </button>
 
       {results && (

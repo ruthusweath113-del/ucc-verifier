@@ -1,60 +1,39 @@
-// ── text extraction ──────────────────────────────────────────────────────────
-
-async function extractText(buffer) {
-  const { PdfReader } = await import("pdfreader");
-  return new Promise((resolve, reject) => {
-    const lines = [];
-    new PdfReader().parseBuffer(buffer, (err, item) => {
-      if (err) return reject(new Error(String(err)));
-      if (!item) {
-        // end of file
-        const text = lines.join("\n");
-        if (!text || text.trim().length < 20) {
-          return reject(new Error("Could not extract text. PDF may be scanned or image-based."));
-        }
-        return resolve(text);
-      }
-      if (item.text) lines.push(item.text);
-    });
-  });
-}
-
 // ── field parsers ────────────────────────────────────────────────────────────
 
 function parseDebtorName(text) {
-  // UCC-1 field 1a: look for debtor section
   const patterns = [
-    /DEBTOR['’]?S?\s+(?:EXACT\s+)?(?:FULL\s+)?(?:LEGAL\s+)?NAME[^a-z]{0,30}\n+([^\n]+)/i,
-    /1a\.\s*(?:ORGANIZATION['’]?S?\s+NAME\s*)?[\n\r]+([^\n\r]+)/i,
-    /(?:ORGANIZATION NAME|ORG NAME)[:\s]+([^\n]+)/i,
-    /DEBTOR[:\s]+([^\n]+)/i,
+    /DEBTOR['']?S?\s+(?:EXACT\s+)?(?:FULL\s+)?(?:LEGAL\s+)?NAME[^\n]{0,60}\n+([^\n]+)/i,
+    /1a\.?\s*ORGANIZATION['']?S?\s*NAME[^\n]{0,30}\n+([^\n]+)/i,
+    /ORGANIZATION['']?S?\s*NAME\s*\n+([^\n]+)/i,
   ];
   for (const p of patterns) {
     const m = text.match(p);
-    if (m) return m[1].trim();
+    const val = m?.[1]?.trim();
+    if (val && val.length > 2) return val;
   }
   return null;
 }
 
 function parseSecuredParty(text) {
   const patterns = [
-    /SECURED\s+PARTY['’]?S?\s+(?:FULL\s+)?NAME[^a-z]{0,30}\n+([^\n]+)/i,
-    /3a\.\s*(?:ORGANIZATION['’]?S?\s+NAME\s*)?[\n\r]+([^\n\r]+)/i,
+    /SECURED\s+PARTY['']?S?\s+(?:FULL\s+)?NAME[^\n]{0,60}\n+([^\n]+)/i,
+    /3a\.?\s*ORGANIZATION['']?S?\s*NAME[^\n]{0,30}\n+([^\n]+)/i,
     /SECURED\s+PARTY[:\s]+([^\n]+)/i,
   ];
   for (const p of patterns) {
     const m = text.match(p);
-    if (m) return m[1].trim();
+    const val = m?.[1]?.trim();
+    if (val && val.length > 2) return val;
   }
   return null;
 }
 
 function parseRecordingDate(text) {
-  // county stamps: "Filed: 05/19/2026", "Date Filed: ...", "Recorded:", "File Date:"
+  // county stamps: "05/26/2026 01:24:58 PM", "Filed: ...", "Recorded: ..."
   const patterns = [
-    /(?:filed|recorded|file\s+date|date\s+filed|filing\s+date)[:\s]+(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/i,
-    /(?:filed|recorded)[:\s]+(\w+ \d{1,2},?\s*\d{4})/i,
-    /(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/,
+    /(?:filed|recorded|file\s+date|date\s+filed|filing\s+date)[:\s]+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
+    /(\d{2}\/\d{2}\/\d{4})\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M/i, // timestamp format on county stamp
+    /(?:filed|recorded)[:\s]+(\w+\.?\s+\d{1,2},?\s*\d{4})/i,
   ];
   for (const p of patterns) {
     const m = text.match(p);
@@ -65,15 +44,20 @@ function parseRecordingDate(text) {
 
 function parseFilingNumber(text) {
   const patterns = [
-    /(?:filing\s+(?:number|no)|file\s+(?:number|no)|ucc\s+(?:number|no)|instrument\s+(?:number|no))[:\s#]+([A-Z0-9\-]+)/i,
-    /(?:document\s+(?:number|no)|doc\s+(?:number|no))[:\s#]+([A-Z0-9\-]+)/i,
-    /(?:receipt\s+(?:number|no))[:\s#]+([A-Z0-9\-]+)/i,
+    /(?:filing\s+(?:number|no\.?)|file\s+(?:number|no\.?)|instrument\s+(?:number|no\.?))[:\s#]*([A-Z0-9\-]+)/i,
+    /(?:document\s+(?:number|no\.?)|doc\.?\s+(?:number|no\.?))[:\s#]*([A-Z0-9\-]+)/i,
+    /#\s*(\d{8,})/,  // bare # followed by 8+ digit number (e.g. #202610394)
   ];
   for (const p of patterns) {
     const m = text.match(p);
     if (m) return m[1].trim();
   }
   return null;
+}
+
+function parseReceiptNumber(text) {
+  const m = text.match(/receipt\s*#?\s*(\d+)/i);
+  return m ? m[1].trim() : null;
 }
 
 function parseLoanAmount(text) {
@@ -82,14 +66,15 @@ function parseLoanAmount(text) {
 }
 
 function parsePropertyAddress(text) {
-  // look near "premises", "property address", "collateral address"
   const patterns = [
+    /(?:common\s+known\s+as|commonly\s+known\s+as|known\s+as)[:\s]+([^\n,]{5,}(?:,\s*[^\n]{3,}){1,3})/i,
     /(?:premises|property\s+address|collateral\s+address|located\s+at)[:\s]+([^\n]{10,})/i,
-    /(?:property|collateral)[:\s]*\n+([^\n]{10,})/i,
+    /property\s+commonly\s+known\s+as[:\s]*([^\n]+)/i,
   ];
   for (const p of patterns) {
     const m = text.match(p);
-    if (m) return m[1].trim();
+    const val = m?.[1]?.trim();
+    if (val && val.length > 5) return val;
   }
   return null;
 }
@@ -97,22 +82,21 @@ function parsePropertyAddress(text) {
 function parseAttachments(text) {
   const referenced = [];
   const present = [];
+  const keywords = [
+    { key: "schedule a", label: "Schedule A" },
+    { key: "schedule b", label: "Schedule B" },
+    { key: "exhibit a", label: "Exhibit A" },
+    { key: "exhibit b", label: "Exhibit B" },
+    { key: "addendum", label: "Addendum" },
+  ];
 
-  // common attachment keywords
-  const keywords = ["schedule a", "schedule b", "exhibit a", "exhibit b", "addendum", "attachment"];
-
-  for (const kw of keywords) {
-    if (new RegExp(kw, "i").test(text)) {
-      // if it says "see schedule a" or "schedule a attached" → referenced
-      // if the actual content appears (multi-page) → present
-      // simple heuristic: if mentioned → referenced; if content follows → present
-      referenced.push(kw.replace(/\b\w/g, c => c.toUpperCase()));
-      // check if there's actual content after the keyword (not just a reference line)
-      const idx = text.toLowerCase().indexOf(kw);
-      const after = text.slice(idx, idx + 200);
-      if (after.split("\n").length > 3) {
-        present.push(kw.replace(/\b\w/g, c => c.toUpperCase()));
-      }
+  for (const { key, label } of keywords) {
+    const regex = new RegExp(key.replace(" ", "\\s+"), "i");
+    if (regex.test(text)) {
+      referenced.push(label);
+      // if the heading appears as its own line (actual page), mark present
+      const headingRegex = new RegExp(`^\\s*${key}\\s*$`, "im");
+      if (headingRegex.test(text)) present.push(label);
     }
   }
 
@@ -120,31 +104,23 @@ function parseAttachments(text) {
 }
 
 function isCountyRecording(text) {
-  const lower = text.toLowerCase();
-  // "county" anywhere → county recording
-  if (/\bcounty\b/.test(lower)) return true;
-  return false;
+  return /\bcounty\b/i.test(text);
 }
 
 function parseRecordingOffice(text) {
-  const m = text.match(/([A-Z][a-zA-Z\s]+ County [A-Za-z\s]+(?:Clerk|Recorder|Register)[^\n]*)/);
-  if (m) return m[1].trim();
-  // fallback: grab any line with "county clerk" or "county recorder"
-  const m2 = text.match(/([^\n]*(?:county\s+(?:clerk|recorder|register))[^\n]*)/i);
-  return m2 ? m2[1].trim() : null;
+  const m = text.match(/(?:OFFICIAL\s+RECORDS?\s+)?([A-Z][A-Z\s]+COUNTY[^\n,]*)/i);
+  return m ? m[1].trim() : null;
 }
 
 // ── main handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("file");
+    const { text, fields } = await request.json();
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const text = await extractText(buffer);
+    if (!text || text.trim().length < 20) {
+      return Response.json({ success: false, error: "No text received from document." }, { status: 400 });
+    }
 
     const attachments = parseAttachments(text);
 
@@ -154,6 +130,7 @@ export async function POST(request) {
       securedPartyName: parseSecuredParty(text),
       lenderName: parseSecuredParty(text),
       filingNumber: parseFilingNumber(text),
+      receiptNumber: parseReceiptNumber(text),
       loanAmount: parseLoanAmount(text),
       referencedAttachments: attachments.referenced,
       presentAttachments: attachments.present,
