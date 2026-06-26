@@ -172,11 +172,6 @@ export default function UCCVerifier() {
       // Step 3: send extracted text to API for verification
       setStatusMsg("Verifying...");
       const safeText = fullText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, " ");
-      // TEMP DEBUG — remove after fixing regex
-      setError("OCR TEXT:\n" + safeText.slice(0, 1000));
-      setLoading(false);
-      return;
-
       const res = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
