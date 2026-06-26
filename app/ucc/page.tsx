@@ -217,7 +217,7 @@ export default function UCCVerifier() {
         ...(parsed.loanAmount ? [{
           label: "Loan Amount",
           userValue: form.loanAmount ? `$${parseFloat(form.loanAmount).toLocaleString()}` : null,
-          docValue: parsed.loanAmount,
+          docValue: parsed.loanAmount ?? null,
           status: (!form.loanAmount ? "notfound" : fuzzyMatch(form.loanAmount.replace(/[^0-9.]/g, ""), (parsed.loanAmount ?? "").replace(/[^0-9.]/g, "")) ? "match" : "mismatch") as StatusKey
         }] : [])
       ];
