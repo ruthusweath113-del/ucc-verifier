@@ -3,35 +3,44 @@ import Link from "next/link";
 
 const tools = [
   {
-    href: "/ucc",
-    icon: "📄",
-    title: "UCC County",
-    description: "Verify UCC county filings — debtor name, closing date, property address, and attachments.",
-    color: "#1e3a5f",
+    href: "/verify-all",
+    icon: "⚡",
+    title: "Verify All Documents",
+    description: "Enter details once and verify UCC, Mortgage, and ALR together in one shot.",
+    color: "#111827",
   },
   {
-    href: "/others",
-    icon: "📁",
-    title: "Others",
-    description: "Verify recorded mortgages, assignment of leases & rents, and combined document checks.",
-    color: "#374151",
+    href: "/mortgage",
+    icon: "🏠",
+    title: "Recorded Mortgage",
+    description: "Verify recorded mortgage documents — borrower, lender, loan amount, and recording details.",
+    color: "#065f46",
+  },
+  {
+    href: "/alr",
+    icon: "📋",
+    title: "Assignment of Leases & Rents",
+    description: "Verify ALR documents — assignor, assignee, loan amount, signatures, and recording details.",
+    color: "#7c3aed",
   },
 ];
 
-export default function Home() {
+export default function Others() {
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 600, margin: "0 auto", padding: "4rem 1rem" }}>
 
-      {/* Header */}
+      <div style={{ marginBottom: "2rem" }}>
+        <Link href="/" style={{ fontSize: 13, color: "#6b7280", textDecoration: "none" }}>← Back</Link>
+      </div>
+
       <div style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <div style={{ width: 56, height: 56, borderRadius: 14, background: "#1e3a5f", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
-          <span style={{ fontSize: 28 }}>⚖️</span>
+        <div style={{ width: 56, height: 56, borderRadius: 14, background: "#374151", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
+          <span style={{ fontSize: 28 }}>📁</span>
         </div>
-        <h1 style={{ margin: "0 0 8px", fontSize: 26, fontWeight: 700, color: "#111827" }}>Roc360 Document Verifier</h1>
+        <h1 style={{ margin: "0 0 8px", fontSize: 26, fontWeight: 700, color: "#111827" }}>Other Documents</h1>
         <p style={{ margin: 0, fontSize: 15, color: "#6b7280" }}>Select a document type to verify</p>
       </div>
 
-      {/* Tool cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {tools.map(tool => (
           <Link key={tool.href} href={tool.href} style={{ textDecoration: "none" }}>
