@@ -205,8 +205,8 @@ export default function UCCVerifier() {
           label: "Closing Date",
           userValue: form.closingDate,
           docValue: parsed.recordingDate ?? null,
-          status: !form.closingDate ? "notfound" : !parsed.recordingDate ? "notfound" : dateMatch(form.closingDate, parsed.recordingDate) ? "match" : "mismatch",
-          note: parsed.recordingDate && form.closingDate && !dateMatch(form.closingDate, parsed.recordingDate) ? "Recording date must be on or after closing date" : null
+          status: !form.closingDate ? "notfound" : !parsed.recordingDate ? "notfound" : dateMatch(form.closingDate, parsed.recordingDate ?? "") ? "match" : "mismatch",
+          note: parsed.recordingDate && form.closingDate && !dateMatch(form.closingDate, parsed.recordingDate ?? "") ? "Recording date must be on or after closing date" : null
         },
         {
           label: "Property Address",
@@ -218,7 +218,7 @@ export default function UCCVerifier() {
           label: "Loan Amount",
           userValue: form.loanAmount ? `$${parseFloat(form.loanAmount).toLocaleString()}` : null,
           docValue: parsed.loanAmount,
-          status: (!form.loanAmount ? "notfound" : fuzzyMatch(form.loanAmount.replace(/[^0-9.]/g, ""), parsed.loanAmount.replace(/[^0-9.]/g, "")) ? "match" : "mismatch") as StatusKey
+          status: (!form.loanAmount ? "notfound" : fuzzyMatch(form.loanAmount.replace(/[^0-9.]/g, ""), (parsed.loanAmount ?? "").replace(/[^0-9.]/g, "")) ? "match" : "mismatch") as StatusKey
         }] : [])
       ];
 
