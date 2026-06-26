@@ -128,12 +128,25 @@ export default function UCCVerifier() {
     if (!file) { setError("Please upload a UCC document."); return; }
     setLoading(true); setError(null); setResults(null);
     try {
-      // Step 1: render PDF pages to canvas using PDF.js (browser)
+      // Step 1: render PDF pages to canvas using PDF.js loaded from CDN
       setStatusMsg("Loading PDF...");
-      const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pdfjs: any = await new Promise((resolve, reject) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((window as any).pdfjsLib) { resolve((window as any).pdfjsLib); return; }
+        const s = document.createElement("script");
+        s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+        s.onload = () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const lib = (window as any).pdfjsLib;
+          lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+          resolve(lib);
+        };
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+      const pdf = await pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
 
       // Step 2: OCR each page with Tesseract (browser)
       setStatusMsg("Loading OCR engine...");
