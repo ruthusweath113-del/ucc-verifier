@@ -1,22 +1,12 @@
 // ── text extraction ──────────────────────────────────────────────────────────
 
 async function extractText(buffer) {
-  try {
-    const { default: pdfParse } = await import("pdf-parse");
-    const data = await pdfParse(buffer);
-    if (data.text && data.text.trim().length > 100) return data.text;
-  } catch {}
-
-  // fallback: tesseract OCR for scanned PDFs
-  try {
-    const { createWorker } = await import("tesseract.js");
-    const worker = await createWorker("eng");
-    const { data: { text } } = await worker.recognize(buffer);
-    await worker.terminate();
-    return text;
-  } catch (err) {
-    throw new Error("Could not extract text from PDF: " + err.message);
+  const { default: pdfParse } = await import("pdf-parse");
+  const data = await pdfParse(buffer);
+  if (!data.text || data.text.trim().length < 50) {
+    throw new Error("This appears to be a scanned PDF. Please upload a text-based PDF.");
   }
+  return data.text;
 }
 
 // ── field parsers ────────────────────────────────────────────────────────────
