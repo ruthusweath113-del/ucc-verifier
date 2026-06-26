@@ -1,9 +1,8 @@
-import pdfParse from "pdf-parse";
-
 // ── text extraction ──────────────────────────────────────────────────────────
 
 async function extractText(buffer) {
   try {
+    const { default: pdfParse } = await import("pdf-parse");
     const data = await pdfParse(buffer);
     if (data.text && data.text.trim().length > 100) return data.text;
   } catch {}
