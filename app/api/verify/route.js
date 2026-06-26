@@ -2,28 +2,36 @@
 
 function parseDebtorName(text) {
   const patterns = [
-    /DEBTOR['']?S?\s+(?:EXACT\s+)?(?:FULL\s+)?(?:LEGAL\s+)?NAME[^\n]{0,60}\n+([^\n]+)/i,
-    /1a\.?\s*ORGANIZATION['']?S?\s*NAME[^\n]{0,30}\n+([^\n]+)/i,
-    /ORGANIZATION['']?S?\s*NAME\s*\n+([^\n]+)/i,
+    // name on next line after "1a. ORGANIZATION'S NAME" (strict)
+    /1[aA]\.?\s*ORGANIZATION['']?S?\s*NAME\s*[\r\n]+([^\r\n]{3,})/i,
+    // OCR often reads "1" as "l" — handle "la."
+    /[1lI][aA]\.?\s*ORGANIZATION['']?S?\s*NAME\s*[\r\n]+([^\r\n]{3,})/i,
+    // name on same line after label
+    /ORGANIZATION['']?S?\s*NAME[:\s]+([A-Z][^\r\n]{2,})/i,
+    // broad: anything after "DEBTOR'S NAME" header block
+    /DEBTOR['']?S?\s*NAME[^\r\n]{0,80}[\r\n]+([^\r\n]{3,})/i,
+    // last resort: look for LLC/Corp/Inc near the top of the document
+    /^([A-Z][A-Za-z0-9\s,.'&-]{3,}(?:LLC|L\.L\.C\.|INC|CORP|LTD|LP|LLP)\.?)\s*$/im,
   ];
   for (const p of patterns) {
     const m = text.match(p);
     const val = m?.[1]?.trim();
-    if (val && val.length > 2) return val;
+    if (val && val.length > 2 && val.length < 100) return val;
   }
   return null;
 }
 
 function parseSecuredParty(text) {
   const patterns = [
-    /SECURED\s+PARTY['']?S?\s+(?:FULL\s+)?NAME[^\n]{0,60}\n+([^\n]+)/i,
-    /3a\.?\s*ORGANIZATION['']?S?\s*NAME[^\n]{0,30}\n+([^\n]+)/i,
-    /SECURED\s+PARTY[:\s]+([^\n]+)/i,
+    /3[aA]\.?\s*ORGANIZATION['']?S?\s*NAME\s*[\r\n]+([^\r\n]{3,})/i,
+    /[3B]\.?\s*ORGANIZATION['']?S?\s*NAME\s*[\r\n]+([^\r\n]{3,})/i,
+    /SECURED\s+PARTY['']?S?\s*(?:FULL\s+)?NAME[^\r\n]{0,80}[\r\n]+([^\r\n]{3,})/i,
+    /SECURED\s+PARTY[:\s]+([A-Z][^\r\n]{2,})/i,
   ];
   for (const p of patterns) {
     const m = text.match(p);
     const val = m?.[1]?.trim();
-    if (val && val.length > 2) return val;
+    if (val && val.length > 2 && val.length < 100) return val;
   }
   return null;
 }
