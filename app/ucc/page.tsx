@@ -165,12 +165,13 @@ export default function UCCVerifier() {
         body: JSON.stringify({ text: safeText, fields: form }),
       });
       const rawText = await res.text();
-      let json: { success: boolean; error?: string; data?: ExtractedData };
-      try {
-        json = JSON.parse(rawText);
-      } catch {
-        throw new Error("API response: " + rawText.slice(0, 300));
-      }
+      const json = (() => {
+        try {
+          return JSON.parse(rawText) as { success: boolean; error?: string; data?: ExtractedData };
+        } catch {
+          throw new Error("API response: " + rawText.slice(0, 300));
+        }
+      })();
       if (!json.success) throw new Error(json.error);
 
       const parsed: ExtractedData = json.data ?? {};
