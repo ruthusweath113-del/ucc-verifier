@@ -131,7 +131,7 @@ export default function UCCVerifier() {
       // Step 1: render PDF pages to canvas using PDF.js (browser)
       setStatusMsg("Loading PDF...");
       const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@6.0.227/build/pdf.worker.min.mjs";
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
 
@@ -150,7 +150,7 @@ export default function UCCVerifier() {
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d");
         if (!ctx) continue;
-        await page.render({ canvasContext: ctx, canvas, viewport }).promise;
+        await page.render({ canvasContext: ctx, viewport }).promise;
         const { data: { text } } = await ocrWorker.recognize(canvas);
         fullText += text + "\n";
       }
