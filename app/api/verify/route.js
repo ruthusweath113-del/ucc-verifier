@@ -1,24 +1,22 @@
 // ── text extraction ──────────────────────────────────────────────────────────
 
 async function extractText(buffer) {
-  const PDFParser = (await import("pdf2json")).default;
-  return new Promise((resolve, reject) => {
-    const parser = new PDFParser(null, 1);
-    parser.on("pdfParser_dataReady", (data) => {
-      const text = (data.Pages || []).map(page =>
-        (page.Texts || []).map(t =>
-          (t.R || []).map(r => decodeURIComponent(r.T)).join(" ")
-        ).join(" ")
-      ).join("\n");
-      if (!text || text.trim().length < 50) {
-        reject(new Error("This appears to be a scanned PDF. Please upload a text-based PDF."));
-      } else {
-        resolve(text);
-      }
-    });
-    parser.on("pdfParser_dataError", (err) => reject(new Error(err.parserError)));
-    parser.parseBuffer(buffer);
-  });
+  // DOMMatrix polyfill — pdfjs-dist (used by pdf-parse) expects browser APIs
+  if (typeof globalThis.DOMMatrix === "undefined") {
+    globalThis.DOMMatrix = class DOMMatrix {
+      constructor() { this.a=1;this.b=0;this.c=0;this.d=1;this.e=0;this.f=0; }
+      static fromMatrix() { return new globalThis.DOMMatrix(); }
+      static fromFloat32Array() { return new globalThis.DOMMatrix(); }
+      static fromFloat64Array() { return new globalThis.DOMMatrix(); }
+    };
+  }
+
+  const { default: pdfParse } = await import("pdf-parse");
+  const data = await pdfParse(buffer);
+  if (!data.text || data.text.trim().length < 50) {
+    throw new Error("This appears to be a scanned PDF. Please upload a text-based PDF.");
+  }
+  return data.text;
 }
 
 // ── field parsers ────────────────────────────────────────────────────────────
