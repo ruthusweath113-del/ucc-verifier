@@ -199,7 +199,7 @@ export default function UCCVerifier() {
           label: "Entity Name",
           userValue: form.entityName,
           docValue: parsed.debtorName ?? null,
-          status: !form.entityName ? "notfound" : !parsed.debtorName ? "notfound" : fuzzyMatch(form.entityName, parsed.debtorName) ? "match" : "mismatch"
+          status: !form.entityName ? "notfound" : !parsed.debtorName ? "notfound" : fuzzyMatch(form.entityName, parsed.debtorName ?? "") ? "match" : "mismatch"
         },
         {
           label: "Closing Date",
@@ -212,7 +212,7 @@ export default function UCCVerifier() {
           label: "Property Address",
           userValue: form.propertyAddress,
           docValue: parsed.propertyAddress ?? null,
-          status: !form.propertyAddress ? "notfound" : !parsed.propertyAddress ? "notfound" : addressMatch(form.propertyAddress, parsed.propertyAddress) ? "match" : "mismatch"
+          status: !form.propertyAddress ? "notfound" : !parsed.propertyAddress ? "notfound" : addressMatch(form.propertyAddress, parsed.propertyAddress ?? "") ? "match" : "mismatch"
         },
         ...(parsed.loanAmount ? [{
           label: "Loan Amount",
