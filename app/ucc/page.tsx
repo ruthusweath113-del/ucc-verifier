@@ -150,7 +150,7 @@ export default function UCCVerifier() {
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d");
         if (!ctx) continue;
-        await page.render({ canvasContext: ctx as unknown as object, viewport }).promise;
+        await page.render({ canvasContext: ctx, viewport }).promise;
         const { data: { text } } = await ocrWorker.recognize(canvas);
         fullText += text + "\n";
       }
