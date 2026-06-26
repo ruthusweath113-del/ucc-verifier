@@ -1,22 +1,22 @@
 // ── text extraction ──────────────────────────────────────────────────────────
 
 async function extractText(buffer) {
-  // DOMMatrix polyfill — pdfjs-dist (used by pdf-parse) expects browser APIs
-  if (typeof globalThis.DOMMatrix === "undefined") {
-    globalThis.DOMMatrix = class DOMMatrix {
-      constructor() { this.a=1;this.b=0;this.c=0;this.d=1;this.e=0;this.f=0; }
-      static fromMatrix() { return new globalThis.DOMMatrix(); }
-      static fromFloat32Array() { return new globalThis.DOMMatrix(); }
-      static fromFloat64Array() { return new globalThis.DOMMatrix(); }
-    };
-  }
-
-  const { default: pdfParse } = await import("pdf-parse");
-  const data = await pdfParse(buffer);
-  if (!data.text || data.text.trim().length < 50) {
-    throw new Error("This appears to be a scanned PDF. Please upload a text-based PDF.");
-  }
-  return data.text;
+  const { PdfReader } = await import("pdfreader");
+  return new Promise((resolve, reject) => {
+    const lines = [];
+    new PdfReader().parseBuffer(buffer, (err, item) => {
+      if (err) return reject(new Error(String(err)));
+      if (!item) {
+        // end of file
+        const text = lines.join("\n");
+        if (!text || text.trim().length < 20) {
+          return reject(new Error("Could not extract text. PDF may be scanned or image-based."));
+        }
+        return resolve(text);
+      }
+      if (item.text) lines.push(item.text);
+    });
+  });
 }
 
 // ── field parsers ────────────────────────────────────────────────────────────
