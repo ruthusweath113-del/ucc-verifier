@@ -158,15 +158,22 @@ export default function UCCVerifier() {
 
       // Step 3: send extracted text to API for verification
       setStatusMsg("Verifying...");
+      const safeText = fullText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, " ");
       const res = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: fullText, fields: form }),
+        body: JSON.stringify({ text: safeText, fields: form }),
       });
-      const json = await res.json();
+      const rawText = await res.text();
+      let json: { success: boolean; error?: string; data?: ExtractedData };
+      try {
+        json = JSON.parse(rawText);
+      } catch {
+        throw new Error("API response: " + rawText.slice(0, 300));
+      }
       if (!json.success) throw new Error(json.error);
 
-      const parsed: ExtractedData = json.data;
+      const parsed: ExtractedData = json.data ?? {};
 
       const verifications: Verification[] = [
         {
